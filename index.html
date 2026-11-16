@@ -1,0 +1,1721 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>錦和高中校慶園遊會｜紅白攤位大決戰</title>
+  
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <style>
+    :root {
+      --app-width: 100vw;
+      --app-height: 100vh;
+      --ui-scale: 1;
+      --red-glow: rgba(255, 59, 59, 0.55);
+      --white-glow: rgba(255, 243, 196, 0.55);
+    }
+
+    * { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0; 
+      font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", -apple-system, BlinkMacSystemFont, sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: #0d0404;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* ================= 動態偵測載具範圍主容器 ================= */
+    #appViewport {
+      position: relative;
+      width: var(--app-width);
+      height: var(--app-height);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow-x: hidden;
+      overflow-y: auto;
+      background:
+        radial-gradient(circle at 12% 28%, rgba(220, 38, 38, 0.34) 0%, transparent 55%),
+        radial-gradient(circle at 88% 28%, rgba(253, 224, 71, 0.22) 0%, transparent 55%),
+        radial-gradient(circle at 50% 0%, #3d1612 0%, #140706 75%);
+      color: #fff;
+      padding:
+        max(env(safe-area-inset-top, 8px), 8px)
+        max(env(safe-area-inset-right, 10px), 10px)
+        max(env(safe-area-inset-bottom, 8px), 8px)
+        max(env(safe-area-inset-left, 10px), 10px);
+      box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
+      scrollbar-width: none;
+    }
+    #appViewport::-webkit-scrollbar {
+      display: none;
+    }
+
+    /* 內部自適應縮放層：確保任何載具尺寸下所有按鈕 100% 完整呈現 */
+    #appContent {
+      position: relative;
+      width: 100%;
+      min-height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 6px;
+      z-index: 15;
+      transform-origin: top center;
+    }
+
+    /* 慶典漂浮光點動畫 */
+    .sparkle-layer {
+      position: absolute;
+      inset: 0;
+      background-image:
+        radial-gradient(2px 2px at 18% 22%, rgba(255, 215, 0, 0.5), transparent),
+        radial-gradient(2.5px 2.5px at 82% 18%, rgba(255, 107, 107, 0.5), transparent),
+        radial-gradient(2px 2px at 22% 62%, rgba(255, 250, 220, 0.45), transparent),
+        radial-gradient(3px 3px at 78% 58%, rgba(255, 215, 0, 0.45), transparent);
+      pointer-events: none;
+      z-index: 1;
+      animation: twinkle 4s ease-in-out infinite alternate;
+    }
+    @keyframes twinkle {
+      0% { opacity: 0.35; }
+      100% { opacity: 0.85; }
+    }
+
+    /* ================= 1. 頂部區：錦和校慶徽章 + 重置鈕 + 標題 ================= */
+    .top-header {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      width: 100%;
+      flex-shrink: 0;
+    }
+
+    .header-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      gap: 6px;
+    }
+
+    .school-ribbon {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(180, 83, 9, 0.55), rgba(234, 179, 8, 0.3));
+      border: 1px solid rgba(255, 215, 0, 0.7);
+      color: #fde68a;
+      font-size: clamp(0.72rem, 2.5vw, 0.85rem);
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .top-reset-btn {
+      background: linear-gradient(135deg, #451a03, #290f0a);
+      border: 1.5px solid #ffd700;
+      color: #ffd700;
+      font-size: clamp(0.74rem, 2.5vw, 0.84rem);
+      font-weight: 900;
+      padding: 4px 12px;
+      border-radius: 999px;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+      transition: transform 0.1s, background 0.15s;
+    }
+    .top-reset-btn:hover, .top-reset-btn:active {
+      background: #ffd700;
+      color: #7f1d1d;
+      transform: scale(0.95);
+    }
+
+    .title-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .title-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .lantern {
+      display: inline-block;
+      font-size: clamp(1.2rem, 4.2vw, 1.6rem);
+      animation: swing 2.6s ease-in-out infinite alternate;
+      transform-origin: top center;
+      filter: drop-shadow(0 0 6px rgba(255, 80, 0, 0.7));
+    }
+    .lantern.delay { animation-delay: -1.3s; }
+    @keyframes swing {
+      0% { transform: rotate(-8deg); }
+      100% { transform: rotate(8deg); }
+    }
+
+    h1 { 
+      font-size: clamp(1.3rem, 5.2vw, 1.85rem); 
+      font-weight: 900; 
+      background: linear-gradient(180deg, #fffbeb 0%, #ffd700 55%, #f59e0b 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 2px 0 #7f1d1d) drop-shadow(0 0 12px rgba(255, 215, 0, 0.4));
+      letter-spacing: 1.5px;
+      text-align: center;
+      line-height: 1.15;
+    }
+
+    .status-badge {
+      width: 100%;
+      font-size: clamp(0.76rem, 2.6vw, 0.9rem);
+      font-weight: 800;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(127, 29, 29, 0.92), rgba(153, 27, 27, 0.92));
+      border: 1px solid rgba(255, 215, 0, 0.8);
+      color: #fef08a;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.45);
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ================= 主體區域（直向堆疊 / 橫向雙欄自動切換） ================= */
+    .main-body {
+      flex: 1;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 6px;
+      min-height: 0;
+    }
+
+    .left-column {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      flex: 1;
+      gap: 6px;
+      min-height: 0;
+    }
+
+    /* ================= 2. 拔河拉鋸計分面板 ================= */
+    .battle-arena {
+      width: 100%;
+      background: rgba(26, 11, 9, 0.82);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 215, 0, 0.35);
+      border-radius: 16px;
+      padding: 8px 10px;
+      box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+
+    .scoreboard { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center;
+      width: 100%; 
+      gap: 6px;
+    }
+
+    .team-card {
+      display: flex;
+      align-items: center;
+      padding: 4px 9px;
+      border-radius: 11px;
+      flex: 1;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .team-card.red {
+      background: linear-gradient(135deg, rgba(220, 38, 38, 0.28), rgba(153, 27, 27, 0.12));
+      border: 1px solid rgba(248, 113, 113, 0.5);
+    }
+    .team-card.white {
+      background: linear-gradient(135deg, rgba(254, 243, 199, 0.12), rgba(253, 230, 138, 0.28));
+      border: 1px solid rgba(253, 224, 71, 0.5);
+      justify-content: flex-end;
+    }
+    .team-card.leading {
+      box-shadow: 0 0 12px rgba(255, 215, 0, 0.4);
+      border-color: #ffd700;
+    }
+
+    .team-info {
+      display: flex;
+      flex-direction: column;
+    }
+    .team-info.right { align-items: flex-end; }
+
+    .team-name {
+      font-size: clamp(0.7rem, 2.3vw, 0.8rem);
+      font-weight: 800;
+      opacity: 0.95;
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      white-space: nowrap;
+    }
+    .crown-icon {
+      display: none;
+      font-size: 0.8rem;
+    }
+    .team-card.leading .crown-icon { display: inline-block; }
+
+    .team-score {
+      font-size: clamp(1.2rem, 4.5vw, 1.55rem);
+      font-weight: 900;
+      line-height: 1.05;
+      font-variant-numeric: tabular-nums;
+    }
+    .red-text { color: #ff5252; text-shadow: 0 2px 10px var(--red-glow); }
+    .white-text { color: #fffbeb; text-shadow: 0 2px 10px var(--white-glow); }
+
+    .vs-badge {
+      font-size: 0.74rem;
+      font-weight: 900;
+      font-style: italic;
+      color: #ffd700;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: rgba(255, 215, 0, 0.14);
+      border: 1px solid rgba(255, 215, 0, 0.4);
+      flex-shrink: 0;
+    }
+
+    /* 拔河能量條 */
+    .bar-wrapper {
+      position: relative;
+      width: 100%;
+      padding: 4px 0 2px;
+    }
+
+    .bar-container { 
+      position: relative;
+      width: 100%; 
+      height: 28px; 
+      background: #1f0e0a; 
+      border-radius: 999px; 
+      overflow: hidden; 
+      display: flex; 
+      border: 2.5px solid #b47b38;
+      box-shadow: inset 0 2px 6px rgba(0,0,0,0.85); 
+    }
+    
+    .center-line {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: repeating-linear-gradient(to bottom, #ffd700 0, #ffd700 4px, transparent 4px, transparent 8px);
+      z-index: 4;
+      transform: translateX(-50%);
+    }
+
+    .bar-red { 
+      height: 100%; 
+      background:
+        repeating-linear-gradient(-45deg, rgba(255,255,255,0.14) 0 10px, transparent 10px 20px),
+        linear-gradient(90deg, #991b1b, #ef4444, #ff6b6b); 
+      background-size: 28px 28px, 100% 100%;
+      animation: moveStripes 1.2s linear infinite;
+      width: 50%; 
+      transition: width 0.22s cubic-bezier(0.1, 0.7, 0.1, 1); 
+    }
+
+    .bar-white { 
+      height: 100%; 
+      background:
+        repeating-linear-gradient(45deg, rgba(180,130,50,0.14) 0 10px, transparent 10px 20px),
+        linear-gradient(90deg, #fffdf9, #fef08a, #f59e0b); 
+      background-size: 28px 28px, 100% 100%;
+      animation: moveStripes 1.2s linear infinite;
+      width: 50%; 
+      transition: width 0.22s cubic-bezier(0.1, 0.7, 0.1, 1); 
+    }
+
+    @keyframes moveStripes {
+      0% { background-position: 0 0, 0 0; }
+      100% { background-position: 28px 0, 0 0; }
+    }
+
+    .knot-marker {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #fffbeb 10%, #ffd700 60%, #b45309 100%);
+      border: 2px solid #fff;
+      box-shadow: 0 0 12px #ffd700, 0 0 20px rgba(255, 69, 0, 0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95rem;
+      transition: left 0.22s cubic-bezier(0.1, 0.7, 0.1, 1);
+      pointer-events: none;
+    }
+
+    .arena-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      font-size: clamp(0.68rem, 2.2vw, 0.76rem);
+      color: rgba(255, 240, 200, 0.85);
+      font-weight: 700;
+    }
+
+    /* ================= 3. 中央彈幕互動主舞台 ================= */
+    .stage-area {
+      position: relative;
+      flex: 1;
+      width: 100%;
+      min-height: 68px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-radius: 14px;
+      border: 1px dashed rgba(255, 215, 0, 0.22);
+      background: rgba(15, 6, 5, 0.35);
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .stage-watermark {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      opacity: 0.16;
+      text-align: center;
+      gap: 2px;
+    }
+    .stage-watermark .vs-giant {
+      font-size: clamp(2.2rem, 8vmin, 3.8rem);
+      font-weight: 900;
+      font-style: italic;
+      line-height: 1;
+      background: linear-gradient(180deg, #fff, #ffd700);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .stage-watermark .school-en {
+      font-size: 0.72rem;
+      font-weight: 900;
+      letter-spacing: 3px;
+      color: #ffd700;
+    }
+    .stage-watermark .stage-hint {
+      margin-top: 2px;
+      font-size: 0.7rem;
+      font-weight: 800;
+      color: #fde68a;
+    }
+
+    /* 彈幕飛行層（精準限制在載具可視容器內） */
+    #danmaku-container {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 30;
+    }
+
+    .danmaku-item {
+      position: absolute;
+      bottom: 175px;
+      padding: 6px 12px 6px 8px;
+      border-radius: 999px;
+      font-weight: 800;
+      font-size: clamp(0.84rem, 2.8vw, 1rem);
+      white-space: nowrap;
+      pointer-events: none;
+      animation: floatUpward 4.5s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+      box-shadow: 0 5px 16px rgba(0,0,0,0.65);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 88%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      backdrop-filter: blur(4px);
+    }
+
+    .danmaku-badge {
+      font-size: 0.66rem;
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-weight: 900;
+      flex-shrink: 0;
+    }
+
+    .danmaku-red {
+      background: linear-gradient(135deg, rgba(185, 28, 28, 0.95), rgba(239, 68, 68, 0.92));
+      color: #fff;
+      border: 1.5px solid #fca5a5;
+    }
+    .danmaku-red .danmaku-badge {
+      background: #fff;
+      color: #b91c1c;
+    }
+
+    .danmaku-white {
+      background: linear-gradient(135deg, rgba(255, 251, 235, 0.96), rgba(253, 230, 138, 0.94));
+      color: #1f2937;
+      border: 1.5px solid #fcd34d;
+    }
+    .danmaku-white .danmaku-badge {
+      background: #92400e;
+      color: #fffbeb;
+    }
+
+    @keyframes floatUpward {
+      0% {
+        opacity: 0;
+        transform: translateY(15px) scale(0.85);
+      }
+      10% {
+        opacity: 1;
+        transform: translateY(0) scale(1.03);
+      }
+      82% {
+        opacity: 0.95;
+      }
+      100% {
+        opacity: 0;
+        transform: translateY(-55vh) scale(0.92);
+      }
+    }
+
+    /* ================= 4. 底部操作區：快捷詞 + 輸入框 + 紅白投票鈕 ================= */
+    .controls-wrapper {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: rgba(24, 10, 8, 0.92);
+      backdrop-filter: blur(12px);
+      padding: 9px 10px;
+      border-radius: 16px;
+      border: 1.5px solid rgba(255, 215, 0, 0.42);
+      box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.65);
+      flex-shrink: 0;
+    }
+
+    .quick-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      color: #fde68a;
+      font-weight: 800;
+      padding: 0 2px;
+    }
+
+    /* 3x2 網格快捷應援詞：6顆按鈕完整呈現不遺漏 */
+    .quick-tags {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 5px;
+      width: 100%;
+    }
+    .tag-chip {
+      background: linear-gradient(135deg, rgba(255, 215, 0, 0.16), rgba(217, 119, 6, 0.24));
+      border: 1px solid rgba(255, 215, 0, 0.5);
+      color: #fef3c7;
+      padding: 5px 4px;
+      border-radius: 9px;
+      font-size: clamp(0.7rem, 2.3vw, 0.78rem);
+      font-weight: 800;
+      text-align: center;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: transform 0.1s, background 0.15s;
+    }
+    .tag-chip:active {
+      background: rgba(255, 215, 0, 0.4);
+      transform: scale(0.95);
+    }
+
+    .input-wrapper {
+      position: relative;
+      width: 100%;
+    }
+
+    /* 固定 16px 防止 iOS 自動縮放 */
+    .input-box {
+      width: 100%;
+      padding: 9px 48px 9px 12px;
+      border-radius: 11px;
+      border: 2px solid rgba(255, 215, 0, 0.8);
+      background: rgba(12, 5, 4, 0.95);
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      outline: none;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+    .input-box:focus {
+      border-color: #ffd700;
+      box-shadow: 0 0 10px rgba(255, 215, 0, 0.35);
+    }
+    .input-box::placeholder {
+      color: rgba(255, 255, 255, 0.45);
+      font-size: 0.84rem;
+    }
+
+    .char-counter {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: rgba(255, 215, 0, 0.7);
+      pointer-events: none;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+    }
+
+    .btn { 
+      position: relative;
+      flex: 1;
+      height: 52px;
+      font-size: clamp(0.92rem, 3.2vw, 1.05rem); 
+      font-weight: 900; 
+      border-radius: 13px; 
+      cursor: pointer; 
+      touch-action: manipulation; 
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      line-height: 1.1;
+      transition: transform 0.08s ease, opacity 0.2s ease, filter 0.2s ease;
+    }
+    .btn:active:not(:disabled) { 
+      transform: translateY(3px); 
+    }
+    .btn:disabled {
+      opacity: 0.58;
+      filter: grayscale(0.4);
+      cursor: not-allowed;
+    }
+    .btn span.subtext {
+      font-size: 0.68rem;
+      opacity: 0.94;
+      font-weight: 800;
+      padding: 1px 7px;
+      border-radius: 999px;
+    }
+    
+    .btn-red { 
+      background: linear-gradient(180deg, #ef4444 0%, #b91c1c 100%); 
+      color: #fff; 
+      border: 2px solid #fca5a5; 
+      box-shadow: 0 4px 0 #7f1d1d, 0 5px 12px rgba(239, 68, 68, 0.35);
+    }
+    .btn-red:active:not(:disabled) {
+      box-shadow: 0 1px 0 #7f1d1d;
+    }
+    .btn-red span.subtext {
+      background: rgba(0, 0, 0, 0.25);
+    }
+
+    .btn-white { 
+      background: linear-gradient(180deg, #fffbeb 0%, #fde68a 55%, #f59e0b 100%); 
+      color: #451a03; 
+      border: 2px solid #fff; 
+      box-shadow: 0 4px 0 #92400e, 0 5px 12px rgba(251, 191, 36, 0.3);
+    }
+    .btn-white:active:not(:disabled) {
+      box-shadow: 0 1px 0 #92400e;
+    }
+    .btn-white span.subtext {
+      background: rgba(146, 64, 14, 0.16);
+    }
+
+    /* ================= 根據 JS 偵測之載具模式自動調整版面 ================= */
+    /* 電腦或平板上為直式容器加上精緻金邊框 */
+    #appViewport.framed-portrait {
+      border-left: 1.5px solid rgba(255, 215, 0, 0.28);
+      border-right: 1.5px solid rgba(255, 215, 0, 0.28);
+    }
+
+    /* 手機橫向模式 (Landscape)：自動切換左右雙欄，所有按鈕一覽無遺 */
+    #appViewport.mode-landscape .main-body {
+      flex-direction: row;
+      align-items: stretch;
+      gap: 10px;
+    }
+    #appViewport.mode-landscape .left-column {
+      flex: 1.05;
+    }
+    #appViewport.mode-landscape .controls-wrapper {
+      flex: 1;
+      justify-content: space-between;
+    }
+    #appViewport.mode-landscape .title-area {
+      flex-direction: row;
+      justify-content: space-between;
+      width: 100%;
+    }
+    #appViewport.mode-landscape .status-badge {
+      width: auto;
+      max-width: 58%;
+    }
+
+    /* 極矮直向螢幕緊湊保護 (Compact Portrait) */
+    #appViewport.mode-compact .battle-arena {
+      padding: 6px 8px;
+      gap: 3px;
+    }
+    #appViewport.mode-compact .bar-container {
+      height: 22px;
+    }
+    #appViewport.mode-compact .knot-marker {
+      width: 24px;
+      height: 24px;
+      font-size: 0.8rem;
+    }
+    #appViewport.mode-compact .stage-area {
+      min-height: 48px;
+    }
+    #appViewport.mode-compact .controls-wrapper {
+      padding: 7px 8px;
+      gap: 4px;
+    }
+    #appViewport.mode-compact .tag-chip {
+      padding: 4px 2px;
+    }
+    #appViewport.mode-compact .input-box {
+      padding: 7px 44px 7px 10px;
+    }
+    #appViewport.mode-compact .btn {
+      height: 44px;
+    }
+
+    /* 輕量級浮動提示 Toast */
+    .toast {
+      position: absolute;
+      top: 64px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-10px);
+      background: rgba(20, 10, 8, 0.96);
+      color: #ffd700;
+      border: 1.5px solid #ffd700;
+      padding: 8px 16px;
+      border-radius: 999px;
+      font-size: 0.84rem;
+      font-weight: 800;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.7);
+      z-index: 200;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s ease, transform 0.25s ease;
+      white-space: nowrap;
+      max-width: 92%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* 獲勝結算彈窗 */
+    .winner-modal {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at center, rgba(60, 15, 10, 0.92), rgba(12, 4, 4, 0.96));
+      backdrop-filter: blur(10px);
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 120;
+      padding: 20px;
+      text-align: center;
+      overflow: hidden;
+    }
+    /* 中央煙火特效畫布 */
+    .fireworks-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .winner-content {
+      position: relative;
+      z-index: 5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+    }
+    .winner-trophy {
+      font-size: 3.8rem;
+      filter: drop-shadow(0 0 25px rgba(255, 215, 0, 0.9));
+      animation: bounceTrophy 1s ease-in-out infinite alternate;
+    }
+    @keyframes bounceTrophy {
+      0% { transform: translateY(0) scale(1); }
+      100% { transform: translateY(-8px) scale(1.08); }
+    }
+    .winner-school {
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #fde68a;
+      letter-spacing: 1.5px;
+      padding: 4px 14px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 215, 0, 0.5);
+      background: rgba(255, 215, 0, 0.15);
+    }
+    .winner-title { 
+      font-size: 1.65rem; 
+      font-weight: 900; 
+      color: #ffd700; 
+      text-shadow: 0 4px 20px rgba(255, 215, 0, 0.65), 0 2px 4px rgba(0, 0, 0, 0.9);
+    }
+    .winner-subtitle {
+      font-size: 0.88rem;
+      color: rgba(255, 255, 255, 0.9);
+      margin-bottom: 4px;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+    }
+    .winner-btn-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: center;
+      width: 100%;
+      max-width: 260px;
+    }
+    .celebrate-btn {
+      width: 100%;
+      padding: 10px 20px;
+      font-size: 0.94rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, #ef4444, #b91c1c);
+      border: 2px solid #fca5a5;
+      border-radius: 999px;
+      cursor: pointer;
+      color: #fff;
+      box-shadow: 0 4px 18px rgba(239, 68, 68, 0.5);
+      transition: transform 0.1s;
+    }
+    .celebrate-btn:active {
+      transform: scale(0.95);
+    }
+    .restart-btn {
+      width: 100%;
+      padding: 11px 24px;
+      font-size: 0.96rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, #ffd700, #f59e0b);
+      border: 2px solid #fffbeb;
+      border-radius: 999px;
+      cursor: pointer;
+      color: #7f1d1d;
+      box-shadow: 0 6px 24px rgba(255, 215, 0, 0.45);
+    }
+    .restart-btn:active {
+      transform: scale(0.95);
+    }
+
+    /* 重置密碼驗證彈窗 */
+    .confirm-modal {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: rgba(10, 4, 4, 0.88);
+      backdrop-filter: blur(6px);
+      align-items: center;
+      justify-content: center;
+      z-index: 150;
+      padding: 16px;
+    }
+    .confirm-box {
+      background: linear-gradient(180deg, #2e1511, #1c0b09);
+      border: 2px solid #ffd700;
+      border-radius: 20px;
+      padding: 18px 16px;
+      width: 100%;
+      max-width: 320px;
+      text-align: center;
+      box-shadow: 0 12px 35px rgba(0,0,0,0.85);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .confirm-box.shake {
+      animation: shakeBox 0.35s ease;
+    }
+    @keyframes shakeBox {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-8px); }
+      40%, 80% { transform: translateX(8px); }
+    }
+    .confirm-title {
+      font-size: 1.12rem;
+      font-weight: 900;
+      color: #ffd700;
+    }
+    .confirm-desc {
+      font-size: 0.82rem;
+      color: rgba(255, 255, 255, 0.85);
+      line-height: 1.4;
+    }
+    .pin-input {
+      width: 100%;
+      padding: 9px 12px;
+      border-radius: 11px;
+      border: 1.5px solid rgba(255, 215, 0, 0.65);
+      background: rgba(10, 4, 3, 0.9);
+      color: #ffd700;
+      font-size: 16px;
+      font-weight: 800;
+      text-align: center;
+      letter-spacing: 3px;
+      outline: none;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+    .pin-input:focus {
+      border-color: #ffd700;
+      box-shadow: 0 0 10px rgba(255, 215, 0, 0.35);
+    }
+    .pin-input::placeholder {
+      letter-spacing: normal;
+      font-size: 0.82rem;
+      color: rgba(255, 255, 255, 0.4);
+      font-weight: 600;
+    }
+    .pin-error {
+      font-size: 0.76rem;
+      color: #ff6b6b;
+      font-weight: 700;
+      min-height: 1.1em;
+    }
+    .confirm-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .confirm-btn {
+      flex: 1;
+      padding: 10px 0;
+      border-radius: 11px;
+      font-size: 0.9rem;
+      font-weight: 800;
+      cursor: pointer;
+      border: none;
+    }
+    .confirm-cancel {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+    }
+    .confirm-ok {
+      background: linear-gradient(135deg, #ef4444, #b91c1c);
+      color: #fff;
+      border: 1px solid #fca5a5;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 動態偵測載具畫面範圍主容器 -->
+  <div id="appViewport">
+    <div class="sparkle-layer"></div>
+
+    <!-- 浮動提示 -->
+    <div id="toast" class="toast">提示訊息</div>
+
+    <!-- 彈幕飛行容器 -->
+    <div id="danmaku-container"></div>
+
+    <!-- 內部自適應容器（確保所有按鈕與功能 100% 呈現） -->
+    <div id="appContent">
+      <!-- 1. 頂部標題與重置按鈕列 -->
+      <header class="top-header">
+        <div class="header-bar">
+          <div class="school-ribbon">🎉 新北市立錦和高中・校慶園遊會</div>
+          <button type="button" class="top-reset-btn" id="btnTopReset" title="管理員密碼重置">🔒 重置</button>
+        </div>
+
+        <div class="title-area">
+          <div class="title-wrap">
+            <span class="lantern">🏮</span>
+            <h1 id="mainTitle">紅白攤位大決戰</h1>
+            <span class="lantern delay">🏮</span>
+          </div>
+          <div class="status-badge" id="statusBadge">⚔️ 錦和人站出來！留言為心儀攤位讚聲！</div>
+        </div>
+      </header>
+
+      <!-- 主體區：包含拔河面板、彈幕舞台與底部投票控制區 -->
+      <main class="main-body">
+        <div class="left-column">
+          <!-- 2. 拔河拉鋸能量條計分板 -->
+          <section class="battle-arena">
+            <div class="scoreboard">
+              <div class="team-card red" id="cardRed">
+                <div class="team-info">
+                  <span class="team-name">🔴 紅隊攤位 <span class="crown-icon">👑</span></span>
+                  <span class="team-score red-text"><span id="percentRed">50</span>%</span>
+                </div>
+              </div>
+
+              <div class="vs-badge">PK</div>
+
+              <div class="team-card white" id="cardWhite">
+                <div class="team-info right">
+                  <span class="team-name"><span class="crown-icon">👑</span> 白隊攤位 ⚪</span>
+                  <span class="team-score white-text"><span id="percentWhite">50</span>%</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="bar-wrapper">
+              <div class="bar-container">
+                <div class="center-line"></div>
+                <div class="bar-red" id="barRed"></div>
+                <div class="bar-white" id="barWhite"></div>
+              </div>
+              <div class="knot-marker" id="knotMarker">🔥</div>
+            </div>
+
+            <div class="arena-footer">
+              <span>🎯 先拉到 100% 奪得錦和人氣王</span>
+              <span id="msgCountText">💬 本局累計 0 則應援</span>
+            </div>
+          </section>
+
+          <!-- 3. 中央彈幕互動主舞台 -->
+          <section class="stage-area">
+            <div class="stage-watermark">
+              <div class="vs-giant">VS</div>
+              <div class="school-en">JHSH FESTIVAL</div>
+              <div class="stage-hint">⬆️ 即時應援彈幕飛行舞台 ⬆️</div>
+            </div>
+          </section>
+        </div>
+
+        <!-- 4. 底部留言與紅白投票控制面板 -->
+        <section class="controls-wrapper">
+          <div class="quick-header">
+            <span>⚡ 點擊快捷詞一秒填入應援：</span>
+            <span>上限 20 字</span>
+          </div>
+
+          <div class="quick-tags" id="quickTags">
+            <button type="button" class="tag-chip" data-text="🔥 錦和最頂攤位大推！">🔥 錦和最頂</button>
+            <button type="button" class="tag-chip" data-text="🍗 好吃到停不下來！">🍗 好吃到爆</button>
+            <button type="button" class="tag-chip" data-text="🧋 飲料超好喝透心涼！">🧋 飲料超讚</button>
+            <button type="button" class="tag-chip" data-text="💯 老闆店員顏值超高！">💯 顏值超高</button>
+            <button type="button" class="tag-chip" data-text="⚡ 排隊再久也超值得！">⚡ 排隊值得</button>
+            <button type="button" class="tag-chip" data-text="🎂 錦和高中校慶快樂！">🎂 校慶快樂</button>
+          </div>
+
+          <div class="input-wrapper">
+            <input type="text" id="commentInput" class="input-box" placeholder="輸入攤位美味心得，發射彈幕..." maxlength="20" autocomplete="off" />
+            <span class="char-counter" id="charCounter">0/20</span>
+          </div>
+          
+          <div class="btn-row">
+            <button type="button" class="btn btn-red" id="btnRed">
+              <span class="btn-title">🔴 挺紅隊最好吃</span>
+              <span class="subtext" id="subRed">發射彈幕 +1%</span>
+            </button>
+            <button type="button" class="btn btn-white" id="btnWhite">
+              <span class="btn-title">⚪ 挺白隊最美味</span>
+              <span class="subtext" id="subWhite">發射彈幕 +1%</span>
+            </button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- 獲勝彈窗（內建中央高空煙火畫布與慶祝音效） -->
+    <div class="winner-modal" id="winnerModal">
+      <canvas id="fireworksCanvas" class="fireworks-canvas"></canvas>
+      <div class="winner-content">
+        <div class="winner-trophy">🏆</div>
+        <div class="winner-school">🎉 新北市立錦和高中 校慶人氣王 🎉</div>
+        <div class="winner-title" id="winnerText">紅隊攤位奪冠！</div>
+        <div class="winner-subtitle">感謝全場錦和師生與來賓熱情應援！</div>
+        <div class="winner-btn-group">
+          <button type="button" class="celebrate-btn" id="btnReplayFireworks">🎆 施放煙火與慶祝音效</button>
+          <button type="button" class="restart-btn" id="btnRestart">🔒 再戰一局（管理員重置）</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 重置密碼驗證彈窗 -->
+    <div class="confirm-modal" id="confirmModal">
+      <div class="confirm-box" id="confirmBox">
+        <div class="confirm-title">🔒 管理員重置驗證</div>
+        <div class="confirm-desc">重置將會把紅白比數歸零（50% : 50%）並清空全場彈幕。請輸入重置密碼：</div>
+        <input type="password" inputmode="numeric" id="pinInput" class="pin-input" placeholder="請輸入管理員重置密碼" autocomplete="off" />
+        <div class="pin-error" id="pinError"></div>
+        <div class="confirm-actions">
+          <button type="button" class="confirm-btn confirm-cancel" id="btnConfirmCancel">取消</button>
+          <button type="button" class="confirm-btn confirm-ok" id="btnConfirmOk">驗證並重置</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ================= 0. 動態偵測載具畫面大小，決定網頁範圍 =================
+    const appViewport = document.getElementById('appViewport');
+
+    function detectDeviceAndFitViewport() {
+      // 優先讀取手機真實可視區域（扣除瀏覽器網址列、工具列）
+      const vw = window.innerWidth;
+      const vh = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+
+      // 判斷是否正在輸入文字（手機虛擬鍵盤彈出時，高度會驟降，此時保持寬度並允許內部滾動）
+      const isInputFocused = document.activeElement &&
+        (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA');
+
+      appViewport.classList.remove('framed-portrait', 'mode-landscape', 'mode-compact');
+
+      let targetWidth = vw;
+      let targetHeight = vh;
+
+      if (!isInputFocused && vw > vh * 1.15 && vh < 560) {
+        // 載具為【手機橫向模式】：展開橫向雙欄範圍
+        targetWidth = Math.min(vw, 920);
+        targetHeight = vh;
+        appViewport.classList.add('mode-landscape');
+      } else if (vw >= 500) {
+        // 載具為【電腦／平板螢幕】：根據載具高度自動換算最佳 9:16 直向手機範圍
+        targetHeight = vh;
+        targetWidth = Math.min(vw, Math.max(390, Math.round(vh * 0.54)), 460);
+        appViewport.classList.add('framed-portrait');
+      } else {
+        // 載具為【手機直向模式】：100% 貼合手機真實可視寬高
+        targetWidth = vw;
+        targetHeight = vh;
+      }
+
+      // 若載具可視高度較小（例如小螢幕手機或內嵌瀏覽器），啟用緊湊模式確保所有按鈕完整呈現
+      if (targetHeight < 670 && !appViewport.classList.contains('mode-landscape')) {
+        appViewport.classList.add('mode-compact');
+      }
+
+      document.documentElement.style.setProperty('--app-width', `${targetWidth}px`);
+      document.documentElement.style.setProperty('--app-height', `${targetHeight}px`);
+    }
+
+    window.addEventListener('resize', detectDeviceAndFitViewport);
+    window.addEventListener('orientationchange', () => setTimeout(detectDeviceAndFitViewport, 100));
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', detectDeviceAndFitViewport);
+    }
+    detectDeviceAndFitViewport();
+
+    // ================= Firebase 與遊戲核心邏輯 =================
+    const firebaseConfig = {
+      apiKey: "AIzaSyDPKi0vJFm3e0XLRrCTUBGfyNpbsxrDhlY",
+      authDomain: "redwhite-74ff6.firebaseapp.com",
+      databaseURL: "https://redwhite-74ff6-default-rtdb.firebaseio.com",
+      projectId: "redwhite-74ff6",
+      storageBucket: "redwhite-74ff6.firebasestorage.app",
+      messagingSenderId: "713919964215",
+      appId: "1:713919964215:web:719b4eca331f6c6a110bb2",
+      measurementId: "G-X1PDRENPHW"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const tugRef = db.ref('tug_of_war/red_percent');
+    const danmakuRef = db.ref('tug_of_war/messages');
+
+    // 重置管理員密碼
+    const RESET_PASSWORD = '22498566239';
+    // 發送冷卻秒數（防止連點器洗版）
+    const COOLDOWN_SECONDS = 3;
+    // 最大同時存在彈幕數
+    const MAX_ACTIVE_DANMAKU = 20;
+
+    // 簡易不雅詞過濾清單
+    const BAD_WORDS = ['幹', '靠北', '靠腰', '媽的', '他媽', '三小', '尛', '白癡', '智障', '腦殘', '垃圾', '去死', 'fuck', 'shit', 'bitch'];
+
+    const percentRedEl = document.getElementById('percentRed');
+    const percentWhiteEl = document.getElementById('percentWhite');
+    const cardRedEl = document.getElementById('cardRed');
+    const cardWhiteEl = document.getElementById('cardWhite');
+    const barRedEl = document.getElementById('barRed');
+    const barWhiteEl = document.getElementById('barWhite');
+    const knotMarkerEl = document.getElementById('knotMarker');
+    const statusBadge = document.getElementById('statusBadge');
+    const msgCountText = document.getElementById('msgCountText');
+    const winnerModal = document.getElementById('winnerModal');
+    const winnerText = document.getElementById('winnerText');
+    const confirmModal = document.getElementById('confirmModal');
+    const confirmBox = document.getElementById('confirmBox');
+    const pinInput = document.getElementById('pinInput');
+    const pinError = document.getElementById('pinError');
+    const commentInput = document.getElementById('commentInput');
+    const charCounter = document.getElementById('charCounter');
+    const danmakuContainer = document.getElementById('danmaku-container');
+    const btnRed = document.getElementById('btnRed');
+    const btnWhite = document.getElementById('btnWhite');
+    const subRed = document.getElementById('subRed');
+    const subWhite = document.getElementById('subWhite');
+    const toastEl = document.getElementById('toast');
+
+    let currentRed = 50;
+    let hasTriggeredWin = false;
+    let isCoolingDown = false;
+    let cooldownTimer = null;
+    let toastTimer = null;
+    const pageLoadTime = Date.now();
+
+    function showToast(msg) {
+      toastEl.textContent = msg;
+      toastEl.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => {
+        toastEl.classList.remove('show');
+      }, 2200);
+    }
+
+    function sanitizeText(input) {
+      let clean = input.trim();
+      BAD_WORDS.forEach((word) => {
+        const reg = new RegExp(word, 'gi');
+        clean = clean.replace(reg, '❤️');
+      });
+      return clean;
+    }
+
+    // 字數即時統計
+    commentInput.addEventListener('input', () => {
+      charCounter.textContent = `${commentInput.value.length}/20`;
+    });
+
+    // 快捷標籤點擊填入
+    document.getElementById('quickTags').addEventListener('click', (e) => {
+      const chip = e.target.closest('.tag-chip');
+      if (!chip) return;
+      commentInput.value = chip.dataset.text;
+      charCounter.textContent = `${commentInput.value.length}/20`;
+    });
+
+    // 1. 即時監聽比分拉鋸
+    tugRef.on('value', (snap) => {
+      let val = snap.val();
+      if (val === null) {
+        tugRef.set(50);
+        val = 50;
+      }
+
+      currentRed = Math.max(0, Math.min(100, Math.round(val)));
+      const currentWhite = 100 - currentRed;
+
+      percentRedEl.textContent = currentRed;
+      percentWhiteEl.textContent = currentWhite;
+      barRedEl.style.width = currentRed + '%';
+      barWhiteEl.style.width = currentWhite + '%';
+      knotMarkerEl.style.left = currentRed + '%';
+
+      cardRedEl.classList.toggle('leading', currentRed > 50);
+      cardWhiteEl.classList.toggle('leading', currentWhite > 50);
+
+      if (currentRed > 65) {
+        statusBadge.textContent = '🏮 紅隊攤位熱評如潮！在錦和校慶全面領先！';
+      } else if (currentRed < 35) {
+        statusBadge.textContent = '🍢 白隊攤位香氣爆棚！獲得全場師生大好評！';
+      } else {
+        statusBadge.textContent = '⚔️ 錦和紅白兩隊難分軒輊！快留言力挺！';
+      }
+
+      if (currentRed >= 100) {
+        showWinner('🚩 紅隊攤位奪冠！錦和最好吃！');
+      } else if (currentRed <= 0) {
+        showWinner('🍲 白隊攤位奪冠！錦和最美味！');
+      } else {
+        winnerModal.style.display = 'none';
+        stopCenterFireworks();
+        hasTriggeredWin = false;
+      }
+    });
+
+    // 2. 監聽全場新留言，飄出彈幕
+    danmakuRef.limitToLast(10).on('child_added', (snapshot) => {
+      const msg = snapshot.val();
+      if (!msg || !msg.text) return;
+      if (msg.timestamp && msg.timestamp < pageLoadTime - 3000) return;
+      spawnDanmaku(msg.text, msg.team);
+    });
+
+    // 同步統計本局應援留言總數，並在重置清空時清除畫面殘留彈幕
+    danmakuRef.on('value', (snap) => {
+      if (!snap.exists()) {
+        danmakuContainer.innerHTML = '';
+        msgCountText.textContent = '💬 本局累計 0 則應援';
+      } else {
+        msgCountText.textContent = `💬 本局累計 ${snap.numChildren()} 則應援`;
+      }
+    });
+
+    // 3 軌交錯彈幕
+    let lastLane = -1;
+    function spawnDanmaku(text, team) {
+      if (danmakuContainer.children.length >= MAX_ACTIVE_DANMAKU) {
+        danmakuContainer.firstElementChild?.remove();
+      }
+
+      const bubble = document.createElement('div');
+      const isRed = team === 'red';
+      bubble.className = `danmaku-item ${isRed ? 'danmaku-red' : 'danmaku-white'}`;
+
+      const badge = document.createElement('span');
+      badge.className = 'danmaku-badge';
+      badge.textContent = isRed ? '紅隊' : '白隊';
+
+      const content = document.createElement('span');
+      content.textContent = sanitizeText(text);
+
+      bubble.appendChild(badge);
+      bubble.appendChild(content);
+      
+      let lane = Math.floor(Math.random() * 3);
+      if (lane === lastLane) lane = (lane + 1) % 3;
+      lastLane = lane;
+      const randomLeft = 4 + lane * 12 + Math.random() * 6;
+      bubble.style.left = `${randomLeft}%`;
+
+      danmakuContainer.appendChild(bubble);
+
+      setTimeout(() => {
+        bubble.remove();
+      }, 4500);
+    }
+
+    // 啟動發送冷卻倒數
+    function startCooldown() {
+      isCoolingDown = true;
+      btnRed.disabled = true;
+      btnWhite.disabled = true;
+      let remaining = COOLDOWN_SECONDS;
+
+      const updateLabels = () => {
+        subRed.textContent = `冷卻中 (${remaining}s)`;
+        subWhite.textContent = `冷卻中 (${remaining}s)`;
+      };
+      updateLabels();
+
+      clearInterval(cooldownTimer);
+      cooldownTimer = setInterval(() => {
+        remaining -= 1;
+        if (remaining <= 0) {
+          clearInterval(cooldownTimer);
+          isCoolingDown = false;
+          btnRed.disabled = false;
+          btnWhite.disabled = false;
+          subRed.textContent = '發射彈幕 +1%';
+          subWhite.textContent = '發射彈幕 +1%';
+        } else {
+          updateLabels();
+        }
+      }, 1000);
+    }
+
+    // 3. 送出留言 + 加分
+    function submitVote(team) {
+      if (isCoolingDown) {
+        showToast('⏳ 休息一下，馬上就能再次應援！');
+        return;
+      }
+
+      const rawText = commentInput.value.trim();
+      if (!rawText) {
+        showToast('✏️ 請先輸入美味心得或點選快捷詞喔！');
+        commentInput.focus();
+        return;
+      }
+
+      if (currentRed <= 0 || currentRed >= 100) return;
+
+      const cleanText = sanitizeText(rawText);
+
+      danmakuRef.push({
+        text: cleanText,
+        team: team,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      });
+
+      const power = team === 'red' ? +1 : -1;
+      tugRef.transaction((val) => {
+        if (val === null) return 50;
+        let next = val + power;
+        if (next > 100) next = 100;
+        if (next < 0) next = 0;
+        return next;
+      });
+
+      commentInput.value = '';
+      charCounter.textContent = '0/20';
+      commentInput.blur();
+      startCooldown();
+    }
+
+    btnRed.addEventListener('click', () => submitVote('red'));
+    btnWhite.addEventListener('click', () => submitVote('white'));
+
+    // ================= 5. 獲勝中央畫面煙火特效 + 慶祝音效合成器 =================
+    const fireworksCanvas = document.getElementById('fireworksCanvas');
+    const fwCtx = fireworksCanvas.getContext('2d');
+    let fwAnimId = null;
+    let fwLaunchTimer = null;
+    let fwParticles = [];
+    let audioCtx = null;
+
+    // 解鎖瀏覽器音效權限（使用者首次點擊畫面時自動啟用 AudioContext）
+    function initAudioContext() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) {
+          audioCtx = new AudioContextClass();
+        }
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+    window.addEventListener('pointerdown', initAudioContext, { passive: true });
+    window.addEventListener('touchstart', initAudioContext, { passive: true });
+
+    // 合成單顆音符（用於勝利號角樂曲）
+    function playNote(freq, startTime, duration, type = 'triangle', volume = 0.22) {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, startTime);
+
+      gain.gain.setValueAtTime(0.001, startTime);
+      gain.gain.linearRampToValueAtTime(volume, startTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + duration + 0.03);
+    }
+
+    // 合成單次煙火升空與爆炸聲
+    function playFireworkBoomSound(delaySec = 0) {
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime + delaySec;
+
+      // 1. 低頻煙火爆炸重音
+      const boomOsc = audioCtx.createOscillator();
+      const boomGain = audioCtx.createGain();
+      boomOsc.type = 'sine';
+      boomOsc.frequency.setValueAtTime(160, now);
+      boomOsc.frequency.exponentialRampToValueAtTime(32, now + 0.38);
+
+      boomGain.gain.setValueAtTime(0.28, now);
+      boomGain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+
+      boomOsc.connect(boomGain);
+      boomGain.connect(audioCtx.destination);
+      boomOsc.start(now);
+      boomOsc.stop(now + 0.42);
+
+      // 2. 白噪音噼啪火花聲
+      const bufferSize = Math.floor(audioCtx.sampleRate * 0.35);
+      const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const output = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        output[i] = (Math.random() * 2 - 1) * Math.exp(-i / (audioCtx.sampleRate * 0.12));
+      }
+
+      const whiteNoise = audioCtx.createBufferSource();
+      whiteNoise.buffer = noiseBuffer;
+
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(1800, now);
+
+      const noiseGain = audioCtx.createGain();
+      noiseGain.gain.setValueAtTime(0.2, now);
+      noiseGain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+
+      whiteNoise.connect(filter);
+      filter.connect(noiseGain);
+      noiseGain.connect(audioCtx.destination);
+      whiteNoise.start(now);
+    }
+
+    // 播放完整勝利慶典號角 + 連續煙火爆炸音效
+    function playVictoryCelebrationSound() {
+      initAudioContext();
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+
+      // 華麗勝利號角旋律 (C5 -> E5 -> G5 -> C6 慶典琶音與大三和弦)
+      const melody = [
+        { f: 523.25, t: 0.00, d: 0.14 }, // C5
+        { f: 659.25, t: 0.14, d: 0.14 }, // E5
+        { f: 783.99, t: 0.28, d: 0.14 }, // G5
+        { f: 1046.50, t: 0.42, d: 0.36 }, // C6
+        { f: 783.99, t: 0.80, d: 0.16 }, // G5
+        { f: 1046.50, t: 0.98, d: 0.75 }  // C6 長音
+      ];
+      melody.forEach((n) => {
+        playNote(n.f, now + n.t, n.d, 'sawtooth', 0.15);
+        playNote(n.f * 0.5, now + n.t, n.d, 'triangle', 0.18);
+      });
+
+      // 終止式輝煌和弦共鳴
+      playNote(523.25, now + 0.98, 0.8, 'triangle', 0.14);
+      playNote(659.25, now + 0.98, 0.8, 'triangle', 0.14);
+      playNote(783.99, now + 0.98, 0.8, 'triangle', 0.14);
+
+      // 搭配中央煙火的爆炸音效節奏
+      playFireworkBoomSound(0.15);
+      playFireworkBoomSound(0.55);
+      playFireworkBoomSound(0.98);
+      playFireworkBoomSound(1.45);
+    }
+
+    // 在畫面中央生成一朵高空絢麗煙火
+    function spawnCenterFireworkBurst(customX, customY) {
+      const w = fireworksCanvas.width || 400;
+      const h = fireworksCanvas.height || 700;
+      // 集中在畫面正中央區域綻放 (X: 20%~80%, Y: 25%~62%)
+      const cx = customX ?? (w * (0.2 + Math.random() * 0.6));
+      const cy = customY ?? (h * (0.25 + Math.random() * 0.37));
+
+      const palette = ['#ffd700', '#ff4757', '#ff6b81', '#ffffff', '#ffa502', '#7bed9f', '#70a1ff'];
+      const mainColor = palette[Math.floor(Math.random() * palette.length)];
+      const subColor = palette[Math.floor(Math.random() * palette.length)];
+
+      const count = 56;
+      for (let i = 0; i < count; i++) {
+        const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.08;
+        const speed = 1.8 + Math.random() * 4.6;
+        fwParticles.push({
+          x: cx,
+          y: cy,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          alpha: 1,
+          decay: 0.014 + Math.random() * 0.012,
+          color: i % 2 === 0 ? mainColor : subColor,
+          size: 2.2 + Math.random() * 2.2
+        });
+      }
+    }
+
+    function renderFireworksLoop() {
+      const w = fireworksCanvas.width;
+      const h = fireworksCanvas.height;
+      fwCtx.globalCompositeOperation = 'destination-out';
+      fwCtx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+      fwCtx.fillRect(0, 0, w, h);
+      fwCtx.globalCompositeOperation = 'lighter';
+
+      for (let i = fwParticles.length - 1; i >= 0; i--) {
+        const p = fwParticles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.055; // 重力下墜
+        p.vx *= 0.985;
+        p.alpha -= p.decay;
+
+        if (p.alpha <= 0) {
+          fwParticles.splice(i, 1);
+          continue;
+        }
+
+        fwCtx.save();
+        fwCtx.globalAlpha = Math.max(0, p.alpha);
+        fwCtx.fillStyle = p.color;
+        fwCtx.shadowBlur = 10;
+        fwCtx.shadowColor = p.color;
+        fwCtx.beginPath();
+        fwCtx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        fwCtx.fill();
+        fwCtx.restore();
+      }
+
+      fwAnimId = requestAnimationFrame(renderFireworksLoop);
+    }
+
+    // 啟動中央畫面煙火秀 + 全螢幕彩帶 (zIndex: 999 確保在獲勝視窗最上層)
+    function triggerCenterFireworksShow() {
+      fireworksCanvas.width = winnerModal.clientWidth || 420;
+      fireworksCanvas.height = winnerModal.clientHeight || 720;
+
+      // 立刻在正中央引爆 3 朵絢麗煙火
+      const w = fireworksCanvas.width;
+      const h = fireworksCanvas.height;
+      spawnCenterFireworkBurst(w * 0.5, h * 0.42);
+      setTimeout(() => spawnCenterFireworkBurst(w * 0.32, h * 0.36), 220);
+      setTimeout(() => spawnCenterFireworkBurst(w * 0.68, h * 0.38), 450);
+
+      // 同步在畫面正中央施放頂層彩帶煙火 (zIndex: 999)
+      confetti({
+        particleCount: 110,
+        spread: 100,
+        origin: { x: 0.5, y: 0.48 },
+        zIndex: 999
+      });
+      setTimeout(() => {
+        confetti({
+          particleCount: 80,
+          spread: 120,
+          origin: { x: 0.5, y: 0.42 },
+          zIndex: 999
+        });
+      }, 400);
+
+      if (!fwAnimId) {
+        renderFireworksLoop();
+      }
+
+      clearInterval(fwLaunchTimer);
+      fwLaunchTimer = setInterval(() => {
+        spawnCenterFireworkBurst();
+        playFireworkBoomSound(0);
+      }, 950);
+    }
+
+    function stopCenterFireworks() {
+      clearInterval(fwLaunchTimer);
+      fwLaunchTimer = null;
+      if (fwAnimId) {
+        cancelAnimationFrame(fwAnimId);
+        fwAnimId = null;
+      }
+      fwParticles = [];
+      if (fwCtx && fireworksCanvas.width) {
+        fwCtx.clearRect(0, 0, fireworksCanvas.width, fireworksCanvas.height);
+      }
+    }
+
+    function showWinner(title) {
+      winnerText.textContent = title;
+      winnerModal.style.display = 'flex';
+      if (!hasTriggeredWin) {
+        hasTriggeredWin = true;
+        playVictoryCelebrationSound();
+        triggerCenterFireworksShow();
+      }
+    }
+
+    // 點擊「🎆 施放煙火與慶祝音效」按鈕可隨時重播慶祝高潮
+    document.getElementById('btnReplayFireworks').addEventListener('click', () => {
+      playVictoryCelebrationSound();
+      triggerCenterFireworksShow();
+    });
+
+    // 4. 重置密碼驗證與執行重置
+    function openResetModal() {
+      pinInput.value = '';
+      pinError.textContent = '';
+      confirmModal.style.display = 'flex';
+      setTimeout(() => pinInput.focus(), 80);
+    }
+
+    function verifyAndReset() {
+      const enteredPin = pinInput.value.trim();
+      if (enteredPin !== RESET_PASSWORD) {
+        pinError.textContent = '❌ 密碼錯誤，請重新輸入！';
+        confirmBox.classList.remove('shake');
+        void confirmBox.offsetWidth;
+        confirmBox.classList.add('shake');
+        pinInput.select();
+        return;
+      }
+
+      stopCenterFireworks();
+      tugRef.set(50);
+      danmakuRef.remove();
+      danmakuContainer.innerHTML = '';
+      commentInput.value = '';
+      charCounter.textContent = '0/20';
+      clearInterval(cooldownTimer);
+      isCoolingDown = false;
+      btnRed.disabled = false;
+      btnWhite.disabled = false;
+      subRed.textContent = '發射彈幕 +1%';
+      subWhite.textContent = '發射彈幕 +1%';
+      confirmModal.style.display = 'none';
+      winnerModal.style.display = 'none';
+      showToast('✅ 驗證成功！戰局已重置為 50% : 50%');
+    }
+
+    document.getElementById('btnTopReset').addEventListener('click', openResetModal);
+    document.getElementById('btnRestart').addEventListener('click', openResetModal);
+
+    document.getElementById('btnConfirmCancel').addEventListener('click', () => {
+      confirmModal.style.display = 'none';
+    });
+    document.getElementById('btnConfirmOk').addEventListener('click', verifyAndReset);
+
+    pinInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        verifyAndReset();
+      }
+    });
+  </script>
+</body>
+</html>

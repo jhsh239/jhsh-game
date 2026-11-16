@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>紅白攤位大賽 - 留言拔河決戰</title>
+  
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+  <style>
+    * { 
+      box-sizing: border-box; 
+      margin: 0; 
+      padding: 0; 
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      position: relative;
+    }
+
+    body { 
+      display: flex; 
+      flex-direction: column; 
+      align-items: center; 
+      justify-content: space-between; 
+      min-height: 100vh;
+      min-height: 100dvh; 
+      background: radial-gradient(circle at center, #2e1a17 0%, #150a08 100%);
+      color: #fff; 
+      padding: env(safe-area-inset-top, 16px) 16px env(safe-area-inset-bottom, 16px) 16px;
+    }
+
+    /* 頂部標題與戰況 */
+    .header-area {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      margin-top: 6px;
+      z-index: 10;
+    }
+
+    h1 { 
+      font-size: clamp(1.7rem, 5.5vw, 2.2rem); 
+      font-weight: 900; 
+      color: #ffd000;
+      text-shadow: 0 3px 0 #8b0000, 0 0 15px rgba(255, 208, 0, 0.4);
+      letter-spacing: 2px;
+      text-align: center;
+      margin-bottom: 6px;
+    }
+
+    .status-badge {
+      font-size: clamp(0.9rem, 3vw, 1.05rem);
+      font-weight: bold;
+      padding: 5px 16px;
+      border-radius: 20px;
+      background: #8b1e0f;
+      border: 1.5px solid #ffd000;
+      color: #ffd000;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+      text-align: center;
+    }
+
+    /* 拔河能量條區域 */
+    .battle-arena {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 10px 0;
+      z-index: 10;
+    }
+
+    .scoreboard { 
+      display: flex; 
+      justify-content: space-between; 
+      width: 100%; 
+      margin-bottom: 8px; 
+      font-size: clamp(1.3rem, 4.5vw, 1.7rem); 
+      font-weight: 900; 
+      padding: 0 4px;
+    }
+    .red-text { color: #ff4747; text-shadow: 0 2px 8px rgba(255, 71, 71, 0.5); }
+    .white-text { color: #fdf5e6; text-shadow: 0 2px 8px rgba(253, 245, 230, 0.5); }
+
+    .bar-container { 
+      position: relative;
+      width: 100%; 
+      height: 42px; 
+      background: #3d2314; 
+      border-radius: 21px; 
+      overflow: hidden; 
+      display: flex; 
+      border: 3px solid #8b5a2b;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.7), inset 0 2px 6px rgba(0,0,0,0.8); 
+    }
+    
+    .center-line {
+      position: absolute;
+      left: 50%;
+      top: 0;
+      bottom: 0;
+      width: 4px;
+      background: #ffd000;
+      z-index: 5;
+      transform: translateX(-50%);
+      box-shadow: 0 0 8px #ffd000;
+    }
+
+    .bar-red { 
+      height: 100%; 
+      background: linear-gradient(90deg, #b22222, #ff4747); 
+      width: 50%; 
+      transition: width 0.15s cubic-bezier(0.1, 0.7, 0.1, 1); 
+    }
+    .bar-white { 
+      height: 100%; 
+      background: linear-gradient(90deg, #fffff0, #f5deb3); 
+      width: 50%; 
+      transition: width 0.15s cubic-bezier(0.1, 0.7, 0.1, 1); 
+    }
+
+    /* 向上飄出的彈幕容器（全螢幕穿透） */
+    #danmaku-container {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      z-index: 5;
+    }
+
+    .danmaku-item {
+      position: absolute;
+      bottom: 120px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: 800;
+      font-size: clamp(1rem, 3.8vw, 1.25rem);
+      white-space: nowrap;
+      pointer-events: none;
+      animation: floatUpward 4.5s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.6);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .danmaku-red {
+      background: rgba(231, 76, 60, 0.9);
+      color: #fff;
+      border: 1.5px solid #ff7675;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    }
+
+    .danmaku-white {
+      background: rgba(253, 245, 230, 0.92);
+      color: #2d3436;
+      border: 1.5px solid #ffeaa7;
+    }
+
+    @keyframes floatUpward {
+      0% {
+        opacity: 0;
+        transform: translateY(20px) scale(0.85);
+      }
+      10% {
+        opacity: 1;
+        transform: translateY(0) scale(1.05);
+      }
+      80% {
+        opacity: 0.95;
+      }
+      100% {
+        opacity: 0;
+        transform: translateY(-80vh) scale(0.9);
+      }
+    }
+
+    /* 下方留言與加分控制板 */
+    .controls-wrapper {
+      width: 100%;
+      max-width: 500px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 20;
+      margin-bottom: 6px;
+    }
+
+    .input-box {
+      width: 100%;
+      padding: 14px 16px;
+      border-radius: 14px;
+      border: 2px solid #ffd000;
+      background: rgba(20, 10, 8, 0.85);
+      color: #fff;
+      font-size: 1.1rem;
+      font-weight: bold;
+      outline: none;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+    .input-box::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 0.95rem;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      width: 100%;
+    }
+
+    .btn { 
+      flex: 1;
+      height: 70px;
+      font-size: clamp(1rem, 3.8vw, 1.25rem); 
+      font-weight: 900; 
+      border-radius: 14px; 
+      cursor: pointer; 
+      touch-action: manipulation; 
+      box-shadow: 0 6px 0 rgba(0,0,0,0.5);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 2px;
+      line-height: 1.2;
+      transition: transform 0.05s ease;
+      border: none;
+    }
+    .btn:active { 
+      transform: translateY(4px); 
+      box-shadow: 0 2px 0 rgba(0,0,0,0.5); 
+    }
+    .btn span.subtext {
+      font-size: 0.75rem;
+      opacity: 0.85;
+      font-weight: normal;
+    }
+    
+    .btn-red { 
+      background: linear-gradient(135deg, #c0392b, #e74c3c); 
+      color: #fff; 
+      border: 2.5px solid #ff7675; 
+    }
+    .btn-white { 
+      background: linear-gradient(135deg, #fdf5e6, #f5deb3); 
+      color: #2d3436; 
+      border: 2.5px solid #ffeaa7; 
+    }
+
+    /* 獲勝結算彈窗 */
+    .winner-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(20, 5, 5, 0.95);
+      backdrop-filter: blur(8px);
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 24px;
+      z-index: 100;
+      padding: 20px;
+    }
+    .winner-title { 
+      font-size: clamp(1.8rem, 6vw, 2.5rem); 
+      font-weight: 900; 
+      color: #ffd000; 
+      text-align: center; 
+    }
+    .restart-btn {
+      padding: 14px 32px;
+      font-size: 1.2rem;
+      font-weight: 900;
+      background: #ffd000;
+      border: none;
+      border-radius: 30px;
+      cursor: pointer;
+      color: #8b0000;
+      box-shadow: 0 6px 20px rgba(255, 208, 0, 0.4);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 彈幕容器 -->
+  <div id="danmaku-container"></div>
+
+  <!-- 頂部資訊 -->
+  <div class="header-area">
+    <h1>🏮 紅白攤位大賽 🏮</h1>
+    <div class="status-badge" id="statusBadge">⚔️ 輸入美味心得，為心儀隊伍讚聲！</div>
+  </div>
+
+  <!-- 拔河拉鋸能量條 -->
+  <div class="battle-arena">
+    <div class="scoreboard">
+      <span class="red-text">紅隊: <span id="percentRed">50</span>%</span>
+      <span class="white-text">白隊: <span id="percentWhite">50</span>%</span>
+    </div>
+
+    <div class="bar-container">
+      <div class="center-line"></div>
+      <div class="bar-red" id="barRed"></div>
+      <div class="bar-white" id="barWhite"></div>
+    </div>
+  </div>
+
+  <!-- 留言 + 加分發送區 -->
+  <div class="controls-wrapper">
+    <input type="text" id="commentInput" class="input-box" placeholder="寫下美味心得（例如：炸雞超多汁！）" maxlength="20" autocomplete="off" />
+    
+    <div class="btn-row">
+      <button class="btn btn-red" id="btnRed">
+        紅隊最好吃！
+        <span class="subtext">留言並 +1 分</span>
+      </button>
+      <button class="btn btn-white" id="btnWhite">
+        白隊最美味！
+        <span class="subtext">留言並 +1 分</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- 獲勝彈窗 -->
+  <div class="winner-modal" id="winnerModal">
+    <div class="winner-title" id="winnerText">紅隊美味奪冠！</div>
+    <button class="restart-btn" id="btnRestart">🎉 再戰一局！</button>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDPKi0vJFm3e0XLRrCTUBGfyNpbsxrDhlY",
+      authDomain: "redwhite-74ff6.firebaseapp.com",
+      databaseURL: "https://redwhite-74ff6-default-rtdb.firebaseio.com",
+      projectId: "redwhite-74ff6",
+      storageBucket: "redwhite-74ff6.firebasestorage.app",
+      messagingSenderId: "713919964215",
+      appId: "1:713919964215:web:719b4eca331f6c6a110bb2",
+      measurementId: "G-X1PDRENPHW"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const tugRef = db.ref('tug_of_war/red_percent');
+    const danmakuRef = db.ref('tug_of_war/messages');
+
+    const percentRedEl = document.getElementById('percentRed');
+    const percentWhiteEl = document.getElementById('percentWhite');
+    const barRedEl = document.getElementById('barRed');
+    const barWhiteEl = document.getElementById('barWhite');
+    const statusBadge = document.getElementById('statusBadge');
+    const winnerModal = document.getElementById('winnerModal');
+    const winnerText = document.getElementById('winnerText');
+    const commentInput = document.getElementById('commentInput');
+    const danmakuContainer = document.getElementById('danmaku-container');
+
+    let currentRed = 50;
+    let hasTriggeredWin = false;
+
+    // 1. 即時監聽比分拉鋸
+    tugRef.on('value', (snap) => {
+      let val = snap.val();
+      if (val === null) {
+        tugRef.set(50);
+        val = 50;
+      }
+
+      currentRed = val;
+      const currentWhite = 100 - currentRed;
+
+      percentRedEl.textContent = currentRed;
+      percentWhiteEl.textContent = currentWhite;
+      barRedEl.style.width = currentRed + '%';
+      barWhiteEl.style.width = currentWhite + '%';
+
+      if (currentRed > 65) {
+        statusBadge.textContent = '🏮 紅隊攤位熱評如潮！全面領先！';
+      } else if (currentRed < 35) {
+        statusBadge.textContent = '🍢 白隊攤位香氣爆棚！大獲好評！';
+      } else {
+        statusBadge.textContent = '⚔️ 兩隊人氣難分軒輊！快留言力挺！';
+      }
+
+      if (currentRed >= 100) {
+        showWinner('🚩 紅隊攤位獲勝！全場最好吃！');
+      } else if (currentRed <= 0) {
+        showWinner('🍲 白隊攤位獲勝！全場最美味！');
+      } else {
+        winnerModal.style.display = 'none';
+        hasTriggeredWin = false;
+      }
+    });
+
+    // 2. 監聽全場新留言，飄出彈幕
+    danmakuRef.limitToLast(1).on('child_added', (snapshot) => {
+      const msg = snapshot.val();
+      if (msg && msg.text) {
+        spawnDanmaku(msg.text, msg.team);
+      }
+    });
+
+    function spawnDanmaku(text, team) {
+      const bubble = document.createElement('div');
+      bubble.className = `danmaku-item ${team === 'red' ? 'danmaku-red' : 'danmaku-white'}`;
+      bubble.textContent = `${team === 'red' ? '🔴' : '⚪'} ${text}`;
+      
+      // 隨機水平位置（留出邊距，避免貼邊）
+      const randomLeft = 10 + Math.random() * 60;
+      bubble.style.left = `${randomLeft}%`;
+
+      danmakuContainer.appendChild(bubble);
+
+      setTimeout(() => {
+        bubble.remove();
+      }, 4500);
+    }
+
+    // 3. 送出留言 + 加分
+    function submitVote(team) {
+      const text = commentInput.value.trim();
+      if (!text) {
+        alert('請先輸入心得或推薦文字再投票喔！');
+        commentInput.focus();
+        return;
+      }
+
+      if (currentRed <= 0 || currentRed >= 100) return;
+
+      // 推播留言到 Firebase
+      danmakuRef.push({
+        text: text,
+        team: team,
+        timestamp: Date.now()
+      });
+
+      // 拔河拉鋸數值 +1 或 -1
+      const power = team === 'red' ? +1 : -1;
+      tugRef.transaction((val) => {
+        if (val === null) return 50;
+        let next = val + power;
+        if (next > 100) next = 100;
+        if (next < 0) next = 0;
+        return next;
+      });
+
+      // 清空輸入框
+      commentInput.value = '';
+    }
+
+    document.getElementById('btnRed').addEventListener('click', () => submitVote('red'));
+    document.getElementById('btnWhite').addEventListener('click', () => submitVote('white'));
+
+    function showWinner(title) {
+      winnerText.textContent = title;
+      winnerModal.style.display = 'flex';
+      if (!hasTriggeredWin) {
+        confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 } });
+        hasTriggeredWin = true;
+      }
+    }
+
+    document.getElementById('btnRestart').addEventListener('click', () => {
+      tugRef.set(50);
+      danmakuRef.remove(); // 重設時清空留言歷史
+    });
+  </script>
+</body>
+</html>
