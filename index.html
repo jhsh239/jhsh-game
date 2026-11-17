@@ -990,7 +990,10 @@
       <header class="top-header">
         <div class="header-bar">
           <div class="school-ribbon">🎉 新北市立錦和高中・校慶園遊會</div>
-          <button type="button" class="top-reset-btn" id="btnTopReset" title="管理員密碼重置">🔒 重置</button>
+          <div style="display:flex; gap:5px; flex-shrink:0;">
+            <button type="button" class="top-reset-btn" id="btnShowQr" title="顯示入場 QR Code">📱 QR碼</button>
+            <button type="button" class="top-reset-btn" id="btnTopReset" title="管理員密碼重置">🔒 重置</button>
+          </div>
         </div>
 
         <div class="title-area">
@@ -1112,6 +1115,17 @@
           <button type="button" class="confirm-btn confirm-cancel" id="btnConfirmCancel">取消</button>
           <button type="button" class="confirm-btn confirm-ok" id="btnConfirmOk">驗證並重置</button>
         </div>
+      </div>
+    </div>
+
+    <!-- 現場掃碼加入 QR Code 彈窗 -->
+    <div class="confirm-modal" id="qrModal">
+      <div class="confirm-box" style="max-width:310px; align-items:center;">
+        <div class="confirm-title">📱 掃描加入紅白大決戰</div>
+        <div class="confirm-desc">請用手機相機掃描下方 QR Code 立即連線投票：</div>
+        <img src="qrcode.png" alt="錦和校慶紅白攤位大決戰 QR Code" style="width:210px; height:210px; border-radius:14px; border:3px solid #ffd700; background:#fff; padding:6px;" />
+        <div style="font-size:0.74rem; color:#fde68a; word-break:break-all;">https://jhsh239.github.io/jhsh-game/</div>
+        <button type="button" class="confirm-btn confirm-ok" id="btnCloseQr" style="width:100%; margin-top:4px;">關閉視窗</button>
       </div>
     </div>
   </div>
@@ -1715,6 +1729,15 @@
       if (e.key === 'Enter') {
         verifyAndReset();
       }
+    });
+
+    // 5. 現場 QR Code 彈窗開關
+    const qrModal = document.getElementById('qrModal');
+    document.getElementById('btnShowQr').addEventListener('click', () => {
+      qrModal.style.display = 'flex';
+    });
+    document.getElementById('btnCloseQr').addEventListener('click', () => {
+      qrModal.style.display = 'none';
     });
   </script>
 </body>
